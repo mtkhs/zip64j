@@ -1,0 +1,21 @@
+; zip64j.def - Module definition file
+;
+; Exports the 統合アーカイバAPI仕様 function names undecorated (no __imp_
+; prefix, no stdcall decoration) so GetProcAddress calls from existing
+; clients resolve without source changes.
+;
+; LIBRARY directive intentionally omitted — the linker infers the target
+; name from /OUT, so renaming the output file does not require editing
+; this file.
+
+EXPORTS
+    ; ---- Zip ----
+    ZipGetVersion
+    ZipGetRunning
+    Zip
+    ZipW
+    ZipConfigDialog
+    ZipConfigDialogW
+    ZipQueryFunctionList
+    ZipQueryEncryption
+

@@ -1,0 +1,73 @@
+; unzip64.def - Module definition file
+;
+; Exports the 統合アーカイバAPI仕様 UnZip DLL surface (UnZip* and ZipUnZip*
+; aliases). unzip60's Wiz_* entry points are NOT re-exported — they stay
+; internal to the statically-linked code.
+
+EXPORTS
+    ; ---- UnZip (command-line / version / query) ----
+    UnZip
+    UnZipW
+    UnZipGetVersion
+    UnZipGetRunning
+    UnZipQueryFunctionList
+
+    ; ---- UnZip (archive handle) ----
+    UnZipOpenArchive
+    UnZipOpenArchiveW
+    UnZipOpenArchive2
+    UnZipCloseArchive
+    UnZipFindFirst
+    UnZipFindFirstW
+    UnZipFindNext
+    UnZipFindNextW
+    UnZipGetFileCount
+    UnZipCheckArchive
+
+    ; ---- UnZip (per-entry accessors) ----
+    UnZipGetFileName
+    UnZipGetFileNameW
+    UnZipGetMethod
+    UnZipGetOriginalSize
+    UnZipGetOriginalSizeEx
+    UnZipGetCompressedSize
+    UnZipGetCompressedSizeEx
+    UnZipGetArcFileSize
+    UnZipGetArcFileSizeEx
+    UnZipGetArcOriginalSize
+    UnZipGetArcOriginalSizeEx
+    UnZipGetArcCompressedSize
+    UnZipGetArcCompressedSizeEx
+    UnZipGetRatio
+    UnZipGetDate
+    UnZipGetTime
+    UnZipGetCRC
+    UnZipGetAttribute
+    UnZipGetOSType
+
+    ; ---- UnZip (64bit / FILETIME time accessors) ----
+    UnZipGetWriteTime64
+    UnZipGetCreateTime64
+    UnZipGetAccessTime64
+    UnZipGetWriteTimeEx
+    UnZipGetCreateTimeEx
+    UnZipGetAccessTimeEx
+
+    ; ---- UnZip (owner window) ----
+    UnZipSetOwnerWindow
+    UnZipClearOwnerWindow
+    UnZipSetOwnerWindowEx
+    UnZipKillOwnerWindowEx
+
+    ; ---- ZipUnZip aliases (forward to UnZip*) ----
+    ZipUnZip
+    ZipUnZipW
+    ZipUnZipGetVersion
+    ZipUnZipOpenArchive
+    ZipUnZipOpenArchiveW
+    ZipUnZipCloseArchive
+    ZipUnZipFindFirst
+    ZipUnZipFindFirstW
+    ZipUnZipFindNext
+    ZipUnZipFindNextW
+    ZipUnZipQueryFunctionList

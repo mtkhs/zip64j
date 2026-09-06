@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+*.obj
+*.lib
+*.exp
+*.ilk
+*.pdb
+
+# Development-internal docs, not part of the public repo
+docs/
+
+# Reference sources (third-party, read-only; tracked separately via submodules
+# or fetched on demand)
+references/
+
+# Editor / IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Claude Code local settings (contains user-specific paths)
+.claude/
+
+# Debug logs
+*.log

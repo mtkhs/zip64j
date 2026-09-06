@@ -1,0 +1,56 @@
+/*
+ * unzip64.rc - Version info resource for unzip64.dll
+ */
+
+#pragma code_page(65001)   /* source is UTF-8; required for Japanese strings */
+
+#include <winver.h>
+
+/* GetVersion returns MAJOR*100 + MINOR (= 100, shown as "1.00" by archiver
+ * hosts). Fields 2-4 carry the project version: 1,0,1,0 = project 0.1.0.
+ * Bumping field 2 also changes what GetVersion reports. */
+#define UNZIP64_VERSION_MAJOR   1
+#define UNZIP64_VERSION_MINOR   0
+#define UNZIP64_VERSION_PATCH   1
+#define UNZIP64_VERSION_BUILD   0
+
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x)  STRINGIFY_(x)
+#define UNZIP64_VERSION_STR \
+    STRINGIFY(UNZIP64_VERSION_MAJOR) "." \
+    STRINGIFY(UNZIP64_VERSION_MINOR) "." \
+    STRINGIFY(UNZIP64_VERSION_PATCH) "." \
+    STRINGIFY(UNZIP64_VERSION_BUILD)
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION    UNZIP64_VERSION_MAJOR,UNZIP64_VERSION_MINOR,UNZIP64_VERSION_PATCH,UNZIP64_VERSION_BUILD
+ PRODUCTVERSION UNZIP64_VERSION_MAJOR,UNZIP64_VERSION_MINOR,UNZIP64_VERSION_PATCH,UNZIP64_VERSION_BUILD
+ FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS      VS_FF_DEBUG
+#else
+ FILEFLAGS      0
+#endif
+ FILEOS         VOS_NT_WINDOWS32
+ FILETYPE       VFT_DLL
+ FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041104B0"
+        BEGIN
+            VALUE "CompanyName",      "zip64j project"
+            VALUE "FileDescription",  "unzip64 - 統合アーカイバAPI仕様 UnZip DLL (64bit)"
+            VALUE "FileVersion",      UNZIP64_VERSION_STR
+            VALUE "InternalName",     "unzip64"
+            VALUE "LegalCopyright",   "Copyright (c) mtkhs."
+            VALUE "OriginalFilename", "unzip64.dll"
+            VALUE "ProductName",      "unzip64.dll"
+            VALUE "ProductVersion",   UNZIP64_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0411, 0x04B0
+    END
+END
