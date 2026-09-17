@@ -7,11 +7,11 @@
 #include <winver.h>
 
 /* GetVersion returns MAJOR*100 + MINOR (= 100, shown as "1.00" by archiver
- * hosts). Fields 2-4 carry the project version: 1,0,1,0 = project 0.1.0.
+ * hosts). Fields 2-4 carry the project version: 1,0,2,0 = project 0.2.0.
  * Bumping field 2 also changes what GetVersion reports. */
 #define ZIP64J_VERSION_MAJOR    1
 #define ZIP64J_VERSION_MINOR    0
-#define ZIP64J_VERSION_PATCH    1
+#define ZIP64J_VERSION_PATCH    2
 #define ZIP64J_VERSION_BUILD    0
 
 #define STRINGIFY_(x) #x
