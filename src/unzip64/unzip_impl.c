@@ -1,8 +1,8 @@
 /*
  * unzip_impl.c - Implementation of the UnZip* exports.
  *
- * UnZip() parses a command line and delegates to Wiz_SingleEntryUnzip (from
- * the statically-linked unzip60). The archive-handle API family
+ * UnZip() parses a command line and delegates to unzip60_run (unzip60_run.c,
+ * over the statically-linked unzip60). The archive-handle API family
  * (UnZipOpenArchive / UnZipFindFirst / accessors) is backed by a self-
  * contained central-directory parser in arc_cdparse.c + arc_handle.c — it
  * does not depend on any unzip60 global state, so multiple HARCs can
@@ -105,6 +105,81 @@ static int WINAPI cb_service(LPCSTR entryname, z_uint8_mirror uncomprsiz)
 {
     (void)entryname; (void)uncomprsiz;
     return 0;
+}
+
+/* ---- Progress notification to the owner window ----
+ *
+ * One registration slot shared by every SetOwnerWindow* API, as in
+ * UNZIP32.DLL. It changes only while no UnZip() is running (s_cs +
+ * s_running), so UnZip() reads it without the lock. */
+
+static UINT           s_wm_arcextract = 0;
+static HWND           s_owner_hwnd = NULL;   /* non-NULL = registered */
+static LPARCHIVERPROC s_owner_proc = NULL;   /* NULL = SendMessage to s_owner_hwnd */
+static BOOL           s_owner_ex64 = FALSE;  /* registered via *Ex64 */
+static EXTRACTINGINFOEX   s_exinfo;          /* entry being extracted */
+static EXTRACTINGINFOEX64 s_exinfo64;
+
+static BOOL dos_to_filetime(WORD dos_date, WORD dos_time, FILETIME *pft);
+
+/* Returns non-zero when the owner asks to cancel. */
+static int notify_owner(UINT state)
+{
+    LPVOID info = s_owner_ex64 ? (LPVOID)&s_exinfo64 : (LPVOID)&s_exinfo;
+    if (s_owner_proc)
+        return s_owner_proc(s_owner_hwnd, s_wm_arcextract, state, info) != FALSE;
+    return SendMessage(s_owner_hwnd, s_wm_arcextract, state, (LPARAM)info) != 0;
+}
+
+static int on_progress(const UNZIP60_PROGRESS *p)
+{
+    LPEXTRACTINGINFO e = &s_exinfo.exinfo;
+
+    if (p->kind == UNZIP60_PROGRESS_BEGIN) {
+        zip_cd_entry_t name;
+        FILETIME ft;
+        WORD ratio = (p->size > p->comp_size)
+                   ? (WORD)((p->size - p->comp_size) * 1000 / p->size) : 0;
+
+        memset(&s_exinfo, 0, sizeof(s_exinfo));
+        memset(&s_exinfo64, 0, sizeof(s_exinfo64));
+
+        /* Same CP932 conversion as UnZipFindFirst. */
+        name.gp_flag = p->name_is_utf8 ? 0x0800 : 0;
+        lstrcpynA(name.name_raw, p->name_raw, sizeof(name.name_raw));
+        name.name_len = (WORD)strlen(name.name_raw);
+        zip_arc_name_to_cp932(&name, e->szSourceFileName, sizeof(e->szSourceFileName));
+        lstrcpynA(e->szDestFileName, p->dest_path, sizeof(e->szDestFileName));
+        e->dwFileSize = (DWORD)p->size;
+
+        s_exinfo.dwCompressedSize = (DWORD)p->comp_size;
+        s_exinfo.dwCRC   = p->crc;
+        s_exinfo.uOSType = p->os_type;
+        s_exinfo.wRatio  = ratio;
+        s_exinfo.wDate   = p->dos_date;
+        s_exinfo.wTime   = p->dos_time;
+
+        s_exinfo64.dwStructSize     = sizeof(s_exinfo64);
+        s_exinfo64.exinfo           = *e;
+        s_exinfo64.llFileSize       = (__int64)p->size;
+        s_exinfo64.llCompressedSize = (__int64)p->comp_size;
+        s_exinfo64.dwCRC   = p->crc;
+        s_exinfo64.uOSType = p->os_type;
+        s_exinfo64.wRatio  = ratio;
+        if (dos_to_filetime(p->dos_date, p->dos_time, &ft)) {
+            s_exinfo64.ftCreateTime = ft;
+            s_exinfo64.ftAccessTime = ft;
+            s_exinfo64.ftWriteTime  = ft;
+        }
+        memcpy(s_exinfo64.szSourceFileName, e->szSourceFileName, sizeof(e->szSourceFileName));
+        memcpy(s_exinfo64.szDestFileName,   e->szDestFileName,   sizeof(e->szDestFileName));
+        return notify_owner(ARCEXTRACT_BEGIN);
+    }
+
+    e->dwWriteSize                = (DWORD)p->written;
+    s_exinfo64.exinfo.dwWriteSize = (DWORD)p->written;
+    s_exinfo64.llWriteSize        = (__int64)p->written;
+    return notify_owner(ARCEXTRACT_INPROCESS);
 }
 
 /* ---- Command-line parser ----
@@ -495,6 +570,7 @@ int WINAPI UnZip(HWND hwnd, LPCSTR szCmdLine, LPSTR szOutput, DWORD dwSize)
     int    cmd = 'x';
     int    cmd_verbose = 0;
     int    i;
+    UNZIP60_PROGRESS_FN *progress;
 
     (void)hwnd;
 
@@ -602,12 +678,21 @@ int WINAPI UnZip(HWND hwnd, LPCSTR szCmdLine, LPSTR szOutput, DWORD dwSize)
         s_password_present = FALSE;
     }
 
+    progress = (s_owner_hwnd != NULL) ? on_progress : NULL;
+    memset(&s_exinfo, 0, sizeof(s_exinfo));
+    memset(&s_exinfo64, 0, sizeof(s_exinfo64));
+    s_exinfo64.dwStructSize = sizeof(s_exinfo64);
+
     {
-        int pk = Wiz_SingleEntryUnzip(inc_cnt, inc_files, exc_cnt, exc_files,
-                                      &dcl, &funcs);
+        int pk = unzip60_run(inc_cnt, inc_files, exc_cnt, exc_files,
+                             &dcl, &funcs, progress);
         rc = map_pk_to_spec(pk);
-        zip64j_log("UnZip() Wiz_SingleEntryUnzip pk=%d -> rc=0x%04X", pk, rc);
+        zip64j_log("UnZip() unzip60_run pk=%d -> rc=0x%04X", pk, rc);
     }
+
+    /* UNZIP32.DLL sends END once per UnZip(), with the last entry, except
+     * for listings. Its return value is not used. */
+    if (progress && !dcl.nvflag) notify_owner(ARCEXTRACT_END);
 
 cleanup:
     free(arcname);
@@ -698,6 +783,8 @@ BOOL WINAPI UnZipQueryFunctionList(int iFunction)
     case ISARC_CLEAR_OWNER_WINDOW:
     case ISARC_SET_OWNER_WINDOW_EX:
     case ISARC_KILL_OWNER_WINDOW_EX:
+    case ISARC_SET_OWNER_WINDOW_EX64:
+    case ISARC_KILL_OWNER_WINDOW_EX64:
 
     /* Archive-level info */
     case ISARC_GET_ARC_FILE_SIZE:
@@ -1075,10 +1162,56 @@ BOOL WINAPI UnZipGetWriteTime64 (HARC h, __int64 *pT) { return entry_to_int64(h,
 BOOL WINAPI UnZipGetCreateTime64(HARC h, __int64 *pT) { return entry_to_int64(h, pT); }
 BOOL WINAPI UnZipGetAccessTime64(HARC h, __int64 *pT) { return entry_to_int64(h, pT); }
 
-int  WINAPI UnZipSetOwnerWindow(HWND hwnd)              { (void)hwnd; return 0; }
-BOOL WINAPI UnZipClearOwnerWindow(void)                 { return TRUE; }
-BOOL WINAPI UnZipSetOwnerWindowEx(HWND hwnd, void *pMsg){ (void)hwnd; (void)pMsg; return TRUE; }
-BOOL WINAPI UnZipKillOwnerWindowEx(HWND hwnd)           { (void)hwnd; return TRUE; }
+/* ---- Owner window registration (see on_progress) ---- */
+
+/* Fails while UnZip() runs, and when another window is registered. */
+static BOOL set_owner(HWND hwnd, LPARCHIVERPROC proc, BOOL ex64)
+{
+    BOOL ok;
+    if (hwnd == NULL) return FALSE;
+    ensure_cs();
+    EnterCriticalSection(&s_cs);
+    ok = !s_running && (s_owner_hwnd == NULL || s_owner_hwnd == hwnd);
+    if (ok) {
+        if (s_wm_arcextract == 0) s_wm_arcextract = RegisterWindowMessageA(WM_ARCEXTRACT);
+        s_owner_hwnd = hwnd;
+        s_owner_proc = proc;
+        s_owner_ex64 = ex64;
+    }
+    LeaveCriticalSection(&s_cs);
+    zip64j_log("set_owner(hwnd=%p proc=%p ex64=%d) -> %d",
+               (void *)hwnd, (void *)proc, ex64, ok);
+    return ok;
+}
+
+/* Removes the registration: any (UnZipClearOwnerWindow) or only hwnd's. */
+static BOOL clear_owner(BOOL any, HWND hwnd)
+{
+    BOOL ok;
+    ensure_cs();
+    EnterCriticalSection(&s_cs);
+    ok = !s_running && s_owner_hwnd != NULL && (any || s_owner_hwnd == hwnd);
+    if (ok) {
+        s_owner_hwnd = NULL;
+        s_owner_proc = NULL;
+        s_owner_ex64 = FALSE;
+    }
+    LeaveCriticalSection(&s_cs);
+    zip64j_log("clear_owner(any=%d hwnd=%p) -> %d", any, (void *)hwnd, ok);
+    return ok;
+}
+
+int  WINAPI UnZipSetOwnerWindow(HWND hwnd)                         { return set_owner(hwnd, NULL, FALSE); }
+BOOL WINAPI UnZipClearOwnerWindow(void)                            { return clear_owner(TRUE, NULL); }
+BOOL WINAPI UnZipSetOwnerWindowEx(HWND hwnd, LPARCHIVERPROC proc)  { return set_owner(hwnd, proc, FALSE); }
+BOOL WINAPI UnZipKillOwnerWindowEx(HWND hwnd)                      { return clear_owner(FALSE, hwnd); }
+BOOL WINAPI UnZipKillOwnerWindowEx64(HWND hwnd)                    { return clear_owner(FALSE, hwnd); }
+
+BOOL WINAPI UnZipSetOwnerWindowEx64(HWND hwnd, LPARCHIVERPROC proc, DWORD dwStructSize)
+{
+    if (dwStructSize != sizeof(EXTRACTINGINFOEX64)) return FALSE;
+    return set_owner(hwnd, proc, TRUE);
+}
 
 /* ---- ZipUnZip aliases — all forward to UnZip* ---- */
 

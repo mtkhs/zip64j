@@ -19,6 +19,7 @@
 - **unzip64.dll** — ZIP 展開・閲覧
   - `UnZip` / `UnZipW` / `UnZipOpenArchive` / `UnZipFindFirst` / `UnZipFindNext` など
   - `*_Ex` / `*64` の 64bit サイズ・FILETIME 時刻アクセサに対応
+  - `UnZipSetOwnerWindow` / `UnZipSetOwnerWindowEx` / `UnZipSetOwnerWindowEx64` による展開の進捗通知
   - Info-ZIP unzip 6.0 をライブラリ化して静的リンク
 - Zip64 拡張フィールド対応（4GB 超のファイル・書庫）
 - unzip64.dll は `ZipUnZip*` エイリアス経由でも呼び出し可能

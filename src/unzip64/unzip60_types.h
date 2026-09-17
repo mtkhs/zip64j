@@ -2,8 +2,8 @@
  * unzip60_types.h - Mirror of the Info-ZIP UnZip 6.0 DLL public ABI.
  *
  * Same role as zip30_types.h: replicates the DCL / USERFUNCTIONS / callback
- * typedefs so unzip_impl.c can call Wiz_Init / Wiz_SingleEntryUnzip without
- * pulling in unzpriv.h (which redefines CR and drags in a large header chain).
+ * typedefs so unzip_impl.c can call unzip60_run without pulling in unzpriv.h
+ * (which redefines CR and drags in a large header chain).
  *
  * Layouts MUST stay binary-identical to windll/structs.h under
  * WIN32/WINDLL/DLL/USE_EF_UT_TIME.
@@ -97,11 +97,36 @@ typedef struct {
 #define PK_NOZIP_60     9
 #define PK_BADERR_60    80
 
-/* ---- Entry points (static-linked from unzip60 inside this DLL) ---- */
-extern int WINAPI Wiz_SingleEntryUnzip(int ifnc, char **ifnv,
-                                       int xfnc, char **xfnv,
-                                       LPDCL_60 lpDCL,
-                                       LPUSERFUNCTIONS_60 lpUserFunc);
+/* ---- Progress report (unzip60_run.c → unzip_impl.c) ---- */
+
+#define UNZIP60_PROGRESS_BEGIN  0   /* entry about to be written */
+#define UNZIP60_PROGRESS_WRITE  1   /* `written` bytes of it are on disk */
+
+typedef struct {
+    int         kind;           /* UNZIP60_PROGRESS_* */
+    /* BEGIN only */
+    const char *name_raw;       /* name as stored in the local header */
+    int         name_is_utf8;   /* general purpose flag bit 11 */
+    const char *dest_path;      /* output path */
+    unsigned __int64 size;
+    unsigned __int64 comp_size;
+    DWORD       crc;
+    WORD        dos_date;
+    WORD        dos_time;
+    UINT        os_type;
+    /* WRITE only */
+    unsigned __int64 written;
+} UNZIP60_PROGRESS;
+
+/* Returns non-zero to cancel the extraction. */
+typedef int (UNZIP60_PROGRESS_FN)(const UNZIP60_PROGRESS *p);
+
+/* ---- Entry point (unzip60_run.c) ----
+ * Wiz_SingleEntryUnzip, plus a progress report for each entry written to
+ * disk when `progress` is non-NULL. */
+extern int unzip60_run(int ifnc, char **ifnv, int xfnc, char **xfnv,
+                       LPDCL_60 lpDCL, LPUSERFUNCTIONS_60 lpUserFunc,
+                       UNZIP60_PROGRESS_FN *progress);
 
 #ifdef __cplusplus
 }

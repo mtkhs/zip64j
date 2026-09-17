@@ -18,8 +18,14 @@ set(UNZIP64_OWN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zip64j/cmdline.c
 )
 
+# Our code that reads unzip60's Uz_Globs; built with the unzip60 settings.
+set(UNZIP64_UNZIP60_SOURCES
+    ${UNZIP64_SRC}/unzip60_run.c
+)
+
 add_library(unzip64 SHARED
     ${UNZIP64_OWN_SOURCES}
+    ${UNZIP64_UNZIP60_SOURCES}
     ${UNZIP60_SOURCES}
     ${UNZIP64_SRC}/unzip64.rc
 )
@@ -44,7 +50,7 @@ set_source_files_properties(${UNZIP64_OWN_SOURCES} PROPERTIES
 )
 
 if(MSVC)
-    set_source_files_properties(${UNZIP60_SOURCES} PROPERTIES
+    set_source_files_properties(${UNZIP60_SOURCES} ${UNZIP64_UNZIP60_SOURCES} PROPERTIES
         COMPILE_OPTIONS "${UNZIP60_WARN_SUPPRESS};${UNZIP60_FORCE_INCLUDE}"
     )
     foreach(src ${UNZIP64_OWN_SOURCES})

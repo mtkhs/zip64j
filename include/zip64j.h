@@ -118,6 +118,8 @@ extern "C" {
 /* ---- zip64j/unzip64 独自拡張 (spec-reserved range 外) ---- */
 #define ISARC_GET_ORIGINAL_SIZE_EX       85  /* 64bit original size  */
 #define ISARC_GET_COMPRESSED_SIZE_EX     86  /* 64bit compressed size */
+#define ISARC_SET_OWNER_WINDOW_EX64      87  /* same number as 7-zip32.h */
+#define ISARC_KILL_OWNER_WINDOW_EX64     88
 #define ISARC_OPEN_ARCHIVE2              91  /* OpenArchive with reserved arg */
 #define ISARC_QUERY_ENCRYPTION          100  /* zip side: encryption available? */
 #define ISARC_GET_WRITE_TIME_64         111
@@ -217,7 +219,67 @@ typedef struct {
     WCHAR   szMode[8];
 } INDIVIDUALINFOW, *LPINDIVIDUALINFOW;
 
+/* Extraction progress, passed with wm_arcextract. Layouts match UNZIP32.H
+ * (EXTRACTINGINFO / EXTRACTINGINFOEX) and 7-zip32.h (EXTRACTINGINFOEX64). */
+typedef struct {
+    DWORD   dwFileSize;
+    DWORD   dwWriteSize;
+    char    szSourceFileName[FNAME_MAX32 + 1];  /* name stored in the archive, CP932 */
+    char    dummy1[3];
+    char    szDestFileName[FNAME_MAX32 + 1];    /* output path */
+    char    dummy[3];
+} EXTRACTINGINFO, *LPEXTRACTINGINFO;
+
+typedef struct {
+    EXTRACTINGINFO exinfo;
+    DWORD   dwCompressedSize;
+    DWORD   dwCRC;
+    UINT    uOSType;
+    WORD    wRatio;
+    WORD    wDate;
+    WORD    wTime;
+    char    szAttribute[8];
+    char    szMode[8];
+} EXTRACTINGINFOEX, *LPEXTRACTINGINFOEX;
+
+typedef struct {
+    DWORD   dwStructSize;
+    EXTRACTINGINFO exinfo;
+    __int64 llFileSize;
+    __int64 llCompressedSize;
+    __int64 llWriteSize;
+    DWORD   dwAttributes;
+    DWORD   dwCRC;
+    UINT    uOSType;
+    WORD    wRatio;
+    FILETIME ftCreateTime;
+    FILETIME ftAccessTime;
+    FILETIME ftWriteTime;
+    char    szMode[8];
+    char    szSourceFileName[FNAME_MAX32 + 1];
+    char    dummy1[3];
+    char    szDestFileName[FNAME_MAX32 + 1];
+    char    dummy2[3];
+} EXTRACTINGINFOEX64, *LPEXTRACTINGINFOEX64;
+
 #pragma pack(pop)
+
+/* -------- Progress notification -------- */
+
+#ifndef WM_ARCEXTRACT
+#  define WM_ARCEXTRACT          "wm_arcextract"  /* RegisterWindowMessage name */
+#  define ARCEXTRACT_BEGIN       0   /* an entry is about to be extracted */
+#  define ARCEXTRACT_INPROCESS   1   /* dwWriteSize / llWriteSize updated */
+#  define ARCEXTRACT_END         2   /* once, when UnZip() finishes */
+#  define ARCEXTRACT_OPEN        3
+#  define ARCEXTRACT_COPY        4
+#endif
+
+/* nState is an ARCEXTRACT_* value; lpEis points to EXTRACTINGINFOEX, or to
+ * EXTRACTINGINFOEX64 when registered through UnZipSetOwnerWindowEx64.
+ * Return 0 to continue, non-zero to cancel (UNZIP32.DLL's default). */
+typedef BOOL CALLBACK ARCHIVERPROC(HWND hwnd, UINT uMsg, UINT nState, LPVOID lpEis);
+typedef ARCHIVERPROC *LPARCHIVERPROC;
 
 /* -------- Zip API -------- */
 
@@ -283,8 +345,10 @@ BOOL  WINAPI UnZipGetAccessTimeEx(HARC harc, FILETIME *pFileTime);
 
 int   WINAPI UnZipSetOwnerWindow     (HWND hwnd);
 BOOL  WINAPI UnZipClearOwnerWindow   (void);
-BOOL  WINAPI UnZipSetOwnerWindowEx   (HWND hwnd, void *pMsg);
+BOOL  WINAPI UnZipSetOwnerWindowEx   (HWND hwnd, LPARCHIVERPROC lpArcProc);
 BOOL  WINAPI UnZipKillOwnerWindowEx  (HWND hwnd);
+BOOL  WINAPI UnZipSetOwnerWindowEx64 (HWND hwnd, LPARCHIVERPROC lpArcProc, DWORD dwStructSize);
+BOOL  WINAPI UnZipKillOwnerWindowEx64(HWND hwnd);
 
 /* -------- ZipUnZip aliases (forward to UnZip*) -------- */
 

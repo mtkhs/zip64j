@@ -19,6 +19,7 @@ set(SMOKE_TESTS
     smoke_unzip_password    # `-P` on extract
     smoke_unzip_case_match  # `-C` case-insensitive filename match
     smoke_unzip_suffix      # `.ZIP` auto-append on the archive name
+    smoke_unzip_progress    # SetOwnerWindow* progress notification
     smoke_zip_encrypt       # `-P` encryption roundtrip
     smoke_zip_options       # -J / -t / -tt / -b
     smoke_zip_update        # -d / -g / -u / -f (archive read-back)

@@ -58,6 +58,8 @@ EXPORTS
     UnZipClearOwnerWindow
     UnZipSetOwnerWindowEx
     UnZipKillOwnerWindowEx
+    UnZipSetOwnerWindowEx64
+    UnZipKillOwnerWindowEx64
 
     ; ---- ZipUnZip aliases (forward to UnZip*) ----
     ZipUnZip
