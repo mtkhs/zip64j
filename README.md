@@ -58,7 +58,7 @@
 
 ## 参考資料
 
-- **[Info-ZIP Zip 3.0 / UnZip 6.0](https://infozip.sourceforge.net/)**: 圧縮・展開の中核実装。BSD ライクのライセンスで同梱（詳細は `third_party/` 配下参照）
+- **[Info-ZIP Zip 3.0 / UnZip 6.0](https://infozip.sourceforge.net/)**: 圧縮・展開の中核実装
 - **統合アーカイバAPI仕様**: 日本の Windows 向けアーカイバ DLL 共通 API
 - **[zip32j.dll](http://www.madobe.net/archiver/lib/zip32j.html)** (吉岡恒夫 氏 / フリーウェア、改変・再配布自由): 32bit 統合アーカイバAPI仕様版 ZIP DLL。コマンドライントークナイザ (`cmdline.c`) を 64bit 向けに移植
 
