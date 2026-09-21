@@ -20,7 +20,7 @@
  * a `#ifdef ZIPLIB` DllMain that our build does not define. Without this
  * assignment the symbol stays NULL, and FindResourceA(NULL, ...) falls back
  * to the *calling* EXE's resources — so ZipGetVersion would return e.g.
- * afxw.exe's 1.67 instead of our own 1.00. Own the DllMain here and seed
+ * afxw.exe's version instead of our own. Own the DllMain here and seed
  * hCurrentInst ourselves. */
 extern HINSTANCE hCurrentInst;
 
