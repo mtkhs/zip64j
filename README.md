@@ -24,38 +24,6 @@
 - Zip64 拡張フィールド対応（4GB 超のファイル・書庫）
 - unzip64.dll は `ZipUnZip*` エイリアス経由でも呼び出し可能
 
-## 開発環境
-
-1. **Visual Studio 2022**
-   - C++ (C) 開発ツールをインストール
-   - x64 ビルドが前提（32bit ビルドは不可）
-
-2. **CMake 3.21 以上**
-   - Visual Studio 2022 に同梱のもので可
-
-## ビルド手順
-
-1. **リポジトリのクローン**
-   ```powershell
-   git clone https://github.com/mtkhs/zip64j
-   cd zip64j
-   ```
-
-2. **ビルドの実行**
-   ```powershell
-   .\build.ps1
-   ```
-
-   または手動でビルド:
-   ```powershell
-   cmake -B build -G "Visual Studio 17 2022" -A x64
-   cmake --build build --config Release
-   ```
-
-ビルドされた DLL は `build/dist/` に出力されます
-- `zip64j.dll`
-- `unzip64.dll`
-
 ## 参考資料
 
 - **[Info-ZIP Zip 3.0 / UnZip 6.0](https://infozip.sourceforge.net/)**: 圧縮・展開の中核実装
